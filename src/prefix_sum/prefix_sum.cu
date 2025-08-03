@@ -70,7 +70,7 @@ prefix_sum(const float* input, float* output, unsigned long long *prev, int *reg
 
         const uint base = group8 * 8 + ((lane & 1) << 2) + (lane8 >> 1);
         #pragma unroll
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < THREAD_WORK; i++) {
             vals[i] = __shfl_sync(-1, vals[i], base ^ (i / 4), 8);
         }
         __syncwarp();
@@ -102,7 +102,7 @@ prefix_sum(const float* input, float* output, unsigned long long *prev, int *reg
     __syncthreads();
 
     if (warp_id == WARP_COUNT) {
-        float vx = (lane < (int)WARP_COUNT) ? warp_sum[lane] : 0.0f;
+        float vx = (lane < (int)WARP_COUNT) ? warp_sum[lane] : 0.f;
 
         for (int d = 1; d < 32; d <<= 1) {
             float temp = __shfl_up_sync(-1, vx, d);
@@ -169,7 +169,7 @@ prefix_sum(const float* input, float* output, unsigned long long *prev, int *reg
 
         const uint base = group8 * 8 + (lane8 % 4) * 2 + ((lane8 & 4) >> 2);
         #pragma unroll
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < THREAD_WORK; i++) {
             vals[i] = __shfl_sync(-1, vals[i], base ^ ((i / 4) * 2), 8);
         }
 
@@ -186,7 +186,7 @@ prefix_sum(const float* input, float* output, unsigned long long *prev, int *reg
     __syncthreads();
 
     if (warp_id < WARP_COUNT) {
-        const float prev_warp = (warp_id ? warp_sum[warp_id - 1] : 0.0f) + s_exclusive_sum;
+        const float prev_warp = (warp_id ? warp_sum[warp_id - 1] : 0.f) + s_exclusive_sum;
 
         for (int i = 0; i < 4; i++) {
             const uint index = (lane8 ^ i) * 4 + 32 * i;

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 
-static constexpr size_t N = 1024 * 1024 * 64;
+static constexpr size_t N = 1024 * 1024 * 256;
 
 int main() {
     std::vector<uint32_t> h_vec(N);

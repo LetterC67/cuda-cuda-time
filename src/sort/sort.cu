@@ -8,7 +8,7 @@ const     uint WARP_SIZE = 32;
 const     uint RADIX_BITS = 8;
 constexpr uint RADIX_SIZE = 1 << RADIX_BITS;
 
-const     uint THREAD_WORK = 15;
+const     uint THREAD_WORK = 16;
 const     uint CALCULATIVE_WARP_COUNT = 16;
 const     uint LOOK_BACK_WARP_COUNT = 8;
 constexpr uint BLOCK_WORK = CALCULATIVE_WARP_COUNT * 32 * THREAD_WORK;
@@ -439,7 +439,7 @@ int main() {
     CUDA_CHECK(cudaFuncSetAttribute(sort<16>, cudaFuncAttributeMaxDynamicSharedMemorySize, 98304));
     CUDA_CHECK(cudaFuncSetAttribute(sort<24>, cudaFuncAttributeMaxDynamicSharedMemorySize, 98304));
 
-    const int N = BLOCK_WORK * ((1024 * 1024 * 64 + BLOCK_WORK - 1) / BLOCK_WORK);
+    const int N = BLOCK_WORK * ((1024 * 1024 * 256 + BLOCK_WORK - 1) / BLOCK_WORK);
 
     printf("Generating %d random numbers for sorting...\n", N);
     vector<uint> h_init(N);

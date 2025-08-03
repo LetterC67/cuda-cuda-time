@@ -24,7 +24,7 @@ __device__ uint co_rank(const int *a, const int *b, uint n, uint m, uint k) {
 
     uint lg = 31 - __clz(r);
     uint res = 0;
-    for (int pos = lg; pos >= 0; --pos) {
+    for (int pos = lg; pos >= 0; pos--) {
         uint imm = res | (1u << pos);
         if (imm <= l || (imm <= r && a[imm - 1] <= b[k - imm])) {
             res |= (1u << pos);
@@ -52,7 +52,7 @@ __device__ uint co_rank_shared(const int *a, const int *b, uint n, uint m, uint 
 
 __device__ void merge_chunk(const int *sa, const int *sb, int *out, uint &ia, uint &ib) {
     #pragma unroll
-    for (uint idx = 0; idx < THREAD_WORK; ++idx) {
+    for (uint idx = 0; idx < THREAD_WORK; idx++) {
         if (sa[ia] <= sb[ib]) {
             out[idx] = sa[ia++];
         } else {
@@ -61,14 +61,14 @@ __device__ void merge_chunk(const int *sa, const int *sb, int *out, uint &ia, ui
     }
 }
 
-__global__ void merge_path_kernel(const int *a, const int *b, uint n, uint m, uint *bounds) {
+__global__ void merge_path(const int *a, const int *b, uint n, uint m, uint *bounds) {
     const uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
     if (tidx * BLOCK_WORK < n + m) {
         bounds[tidx] = co_rank(a, b, n, m, (tidx + 1) * BLOCK_WORK);
     }
 }
 
-__global__ void merge_kernel(const int *a, const int *b, int *c, uint n, uint m, uint *bounds) {
+__global__ void merge(const int *a, const int *b, int *c, uint n, uint m, uint *bounds) {
     const uint bid = blockIdx.x;
     const uint tid = threadIdx.x;
 
@@ -101,7 +101,7 @@ __global__ void merge_kernel(const int *a, const int *b, int *c, uint n, uint m,
     }
 
     #pragma unroll
-    for (int i = 0; i < THREAD_WORK; ++i) {
+    for (int i = 0; i < THREAD_WORK; i++) {
         uint save_idx = i * NUM_THREADS + tid;
         bool from_b_src = (save_idx >= len_a);
         shared_mem[save_idx + (from_b_src ? THREAD_WORK : 0)] =
@@ -119,7 +119,7 @@ __global__ void merge_kernel(const int *a, const int *b, int *c, uint n, uint m,
     __syncthreads();
 
     #pragma unroll
-    for (uint i = 0; i < THREAD_WORK; ++i) {
+    for (uint i = 0; i < THREAD_WORK; i++) {
         shared_mem[i + tid * THREAD_WORK] = out[i];
     }
 
@@ -138,7 +138,7 @@ int main() {
     vector<int> h_a(n), h_b(m), h_c(total);
 
     uint ia = 0, ib = 0;
-    for (uint i = 0; i < total; ++i) {
+    for (uint i = 0; i < total; i++) {
         if ((ib == m) || ((rand() & 1) && ia < n)) {
             h_a[ia++] = static_cast<int>(i);
         } else if (ib < m) {
@@ -165,21 +165,21 @@ int main() {
     dim3 merge_block(NUM_THREADS);
 
     auto run_once = [&]() {
-        merge_path_kernel<<<mp_grid, mp_block>>>(d_a, d_b, n, m, d_bounds);
+        merge_path<<<mp_grid, mp_block>>>(d_a, d_b, n, m, d_bounds);
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
 
-        merge_kernel<<<merge_grid, merge_block>>>(d_a, d_b, d_c, n, m, d_bounds);
+        merge<<<merge_grid, merge_block>>>(d_a, d_b, d_c, n, m, d_bounds);
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
     };
 
-    for (int i = 0; i < WARMUP_RUNS; ++i) {
+    for (int i = 0; i < WARMUP_RUNS; i++) {
         run_once();
     }
 
-    float total_ms = 0.0f;
-    for (int i = 0; i < TIMED_RUNS; ++i) {
+    float total_ms = 0.;
+    for (int i = 0; i < TIMED_RUNS; i++) {
         cudaEvent_t start, stop;
         CUDA_CHECK(cudaEventCreate(&start));
         CUDA_CHECK(cudaEventCreate(&stop));
@@ -189,7 +189,7 @@ int main() {
         CUDA_CHECK(cudaEventRecord(stop));
         CUDA_CHECK(cudaEventSynchronize(stop));
 
-        float ms = 0.0f;
+        float ms = 0.;
         CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
         total_ms += ms;
 
@@ -207,7 +207,7 @@ int main() {
         bool same = equal(h_c.begin(), h_c.end(), h_ref.begin());
         if (!same) {
             printf("[ERROR] GPU result differs from merge reference!\n");
-            for (uint i = 0; i < total; ++i) {
+            for (uint i = 0; i < total; i++) {
                 if (h_c[i] != h_ref[i]) {
                     printf("Mismatch at %u: got %d, expected %d\n",
                                  i, h_c[i], h_ref[i]);
